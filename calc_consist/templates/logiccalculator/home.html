@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deductive Metaphysics</title>
+</head>
+<body>
+<form method="post" action="{% url 'logiccalculator:home' %}">
+    <input type="text" name="sentence" placeholder="Type your sentence here...">
+    <button type="submit">Submit</button>
+</form>
+<br>
+{% if result %}
+{{ result }} : this is the result
+{% endif %}
+</body>
+</html>
