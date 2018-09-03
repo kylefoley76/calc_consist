@@ -1,0 +1,130 @@
+
+import keyboard, threading
+from pynput import mouse
+import time
+from time import sleep
+from AppKit import NSWorkspace
+from openpyxl import load_workbook
+import datetime
+import sys
+str1 = "/Users/kylefoley/PycharmProjects/inference_engine2/inference2/Proofs/"
+sys.path.append(str1)
+from general_functions import get_hour_minute_sec, put_into_excel,\
+    get_from_excel, get_date_now, get_last_row
+
+wb = load_workbook(str1 + "excel/keystrokes.xlsx")
+ws = wb.worksheets[0]
+# # last_row = get_last_row(ws, 500_000, 1)
+last_row = 1
+front_app = ""
+
+
+def log_into_excel(keystrokes, mouse_strokes):
+    global last_row
+    thour = get_hour_minute_sec(datetime.datetime.now())
+    if mouse_strokes == 0:
+        print ('keystrokes')
+        last_row += 1
+        put_into_excel(ws, last_row, 1, thour)
+        put_into_excel(ws, last_row, 2, int(keystrokes/2))
+    else:
+        print ('mousestrokes')
+        print (last_row)
+        put_into_excel(ws, last_row, 3, mouse_strokes)
+
+    wb.save(str1 + "excel/keystrokes.xlsx")
+
+
+def count_keystrokes():
+    ttime = time.time()
+    keystrokes = 0
+    elapsed = 0
+    total_elapsed = 0
+    all_time = lambda x, y, z: y + (z - x) if x != 0 else 0
+    once = False
+
+    while True:
+        active_app = NSWorkspace.sharedWorkspace().activeApplication()
+        front_app = active_app["NSApplicationName"]
+        if front_app == 'PyCharm':
+            if elapsed == 0:
+                elapsed = time.time()
+
+            b = keyboard.read_key()
+            all_time2 = all_time(elapsed, total_elapsed, time.time())
+            keystrokes += 1
+            print (f"{int(all_time2)}  {keystrokes}")
+
+        else:
+            if elapsed > 0:
+                total_elapsed += (time.time() - elapsed)
+                elapsed = 0
+
+        once = periodic_counter(once, ttime)
+
+        if all_time(elapsed, total_elapsed, time.time()) > 20:
+
+            log_into_excel(keystrokes, 0)
+            total_elapsed = 0
+            elapsed = 0
+            keystrokes = 0
+
+
+def periodic_counter(once, ttime):
+    x = int(time.time() - ttime) % 5
+    if x == 0 and not once:
+        print(f"periodic:  {int(time.time() - ttime)}")
+        once = True
+    elif x == 1 and once:
+        once = False
+    return once
+
+
+def on_click(x, y, button, pressed):
+    if not pressed:
+        return False
+
+def count_mouse():
+    global front_app
+    all_time = lambda x, y, z: y + (z - x) if x != 0 else 0
+    clicks = 0
+    elapsed = 0
+    total_elapsed = 0
+    while True:
+
+        # at first I was putting the line here which throws an error
+       # frontmost = NSWorkspace.sharedWorkspace().activeApplication()
+       # if frontmost["NSApplicationName"] == 'PyCharm':
+
+        with mouse.Listener(on_click=on_click,) as listener:
+            listener.join()
+            frontmost = NSWorkspace.sharedWorkspace().activeApplication()
+            if frontmost["NSApplicationName"] == 'PyCharm':
+                if elapsed == 0:
+                    elapsed = time.time()
+
+                clicks += 1
+                print (f"mouse: {clicks}")
+
+            else:
+                if elapsed > 0:
+                    total_elapsed += (time.time() - elapsed)
+                    elapsed = 0
+
+            if all_time(elapsed, total_elapsed, time.time()) > 20:
+                log_into_excel(0, clicks)
+                total_elapsed = 0
+                elapsed = 0
+                clicks = 0
+
+
+
+t1 = threading.Thread(target=count_mouse)
+t2 = threading.Thread(target=count_keystrokes)
+t1.daemon = True
+t2.daemon = True
+t1.start()
+t2.start()
+
+while True:
+    sleep(0.05)
